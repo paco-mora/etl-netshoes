@@ -1,0 +1,168 @@
+import pandas as pd
+import re
+from conf import NETSHOES_FOLDER
+import numpy as np
+
+class Netshoes_Exportacao():
+    def __init__(self, user, especial_char=False):
+        self.user = user
+        self.especial_char = especial_char
+        self.load()
+        self.transform()
+        
+    def load(self):
+        file = 'exp_' + self.user + '.xlsx'
+        self.df = pd.read_excel(NETSHOES_FOLDER + file)
+        
+    def transform(self):
+        #Renomear colunas
+        self.df = self.df[['SKU Netshoes', 'ID Sku', 'Categoria (Nível 2)', 'Marca']]
+        #Renomear colunas
+        self.df = self.df.rename({'SKU Netshoes': 'sku_netshoes', 'ID Sku': 'sku_seller', 'Categoria (Nível 2)': 'category', 'Marca':'brand'}, axis= 1)
+        #Converter para string
+        self.df['sku_seller'] = self.df['sku_seller'].astype(str)
+        #Remover caracteres especiais
+        if(self.especial_char == False):
+            self.df['sku_seller'] = self.df['sku_seller'].apply(lambda x :remove_especial_char(x))
+        self.df = self.df.drop_duplicates(['sku_netshoes'])
+        return self.df
+    
+    def get_dataframe(self):
+        return self.df
+
+
+class Netshoes_Estoque():
+    def __init__(self, user, especial_char=False):
+        self.user = user
+        self.especial_char = especial_char
+        self.load()
+        self.transform()
+        
+    def load(self):
+        file = 'estoque_' + self.user + '.xlsx'
+        self.df = pd.read_excel(NETSHOES_FOLDER + file)
+        
+    def transform(self):
+        #self.df = self.df[self.df['Quantidade disponível'] > 0]
+        #Renomear colunas
+        self.df = self.df.rename({'Sku Seller': 'sku_seller', 'Quantidade disponível': 'estoque'}, axis= 1)
+        #Converter para string
+        self.df['sku_seller'] = self.df['sku_seller'].astype(str)
+        self.df['estoque'].fillna(0, inplace=True)
+        #Remover caracters especiais
+        if(self.especial_char == False):
+            self.df['sku_seller'] = self.df['sku_seller'].apply(lambda x :remove_especial_char(x))
+        self.df = self.df.drop_duplicates(['sku_seller'])
+        #Fillna
+        self.df['estoque'].fillna(0, inplace=True)
+    
+    def get_dataframe(self):
+        return self.df
+
+    
+class Netshoes_Preco():
+    def __init__(self, user, especial_char=False):
+        self.user = user
+        self.load()
+        self.especial_char = especial_char
+        self.transform()
+        
+    def load(self):
+        file = 'preco_' + self.user + '.xlsx'
+        self.df = pd.read_excel(NETSHOES_FOLDER + file)
+
+    def transform(self):
+        self.df = self.df.drop('Preço De', axis=1)
+        self.df = self.df.rename({'Sku Seller': 'sku_seller', 'Preço Por': 'preco'}, axis= 1)
+        self.df['sku_seller'] = self.df['sku_seller'].astype(str)
+        if(self.especial_char == False):
+            self.df['sku_seller'] = self.df['sku_seller'].apply(lambda x :remove_especial_char(x))
+        self.df = self.df.drop_duplicates(['sku_seller'])
+        
+    def get_dataframe(self):
+        return self.df
+    
+class Moovin():
+    def __init__(self, user, preco=False, estoque=False, especial_char=False):
+        self.user = user
+        self.preco = preco
+        self.estoque = estoque
+        self.especial_char = especial_char
+        self.load()
+        self.transform()
+        
+    def load(self):
+        file = 'moovin_' + self.user + '.csv'
+        self.df = pd.read_csv(NETSHOES_FOLDER + file, encoding='latin1', sep = ';', decimal=',')
+
+    def transform(self):
+        self.df = self.df[self.df.columns[self.df.columns.isin(['Codigo Tamanho', 'PrecoCusto', 'PrecoAtual', 'QTD'])]]
+        self.df.rename({'Codigo Tamanho': 'sku_seller', 'PrecoCusto': 'cost_price', 'PrecoAtual': 'preco', 'QTD':'estoque'}, axis= 1, inplace=True)
+        self.df['sku_seller_bruto'] = self.df['sku_seller']
+        self.df['estoque'].fillna(0, inplace=True)
+        if(self.preco == False):
+            self.df.drop(columns=['preco'], axis=1, inplace=True)
+        if(self.estoque == False):
+            self.df.drop(columns=['estoque'], axis=1, inplace=True)
+        self.df['sku_seller'] = self.df['sku_seller'].astype(str)
+        if(self.especial_char == False):
+            self.df['sku_seller'] = self.df['sku_seller'].apply(lambda x :remove_especial_char(x))
+        self.df = self.df.drop_duplicates(['sku_seller'])
+        
+    def get_dataframe(self):
+        return self.df
+    
+
+class Anymarket():
+    def __init__(self, user, especial_char=False):
+        self.user = user
+        self.especial_char = especial_char
+        self.load()
+        self.transform()
+        
+    def load(self):
+        file = 'anymarket_' + self.user + '.xlsx'
+        self.df = pd.read_excel(NETSHOES_FOLDER + file)
+
+    def transform(self):
+        self.df = self.df[self.df.columns[self.df.columns.isin(['CÓDIGO FORNECEDOR / SKU INTERNO', 'CUSTO', 'QTD'])]]
+        self.df = self.df.rename({'CÓDIGO FORNECEDOR / SKU INTERNO': 'sku_seller', 'CUSTO': 'cost_price', 'QTD': 'estoque'}, axis= 1)
+        self.df['sku_seller'] = self.df['sku_seller'].astype(str)
+        self.df['cost_price'] = self.df['cost_price'].astype(float)
+        self.df['sku_seller'] = self.df['sku_seller'].astype(str)
+        self.df['estoque'] = self.df['estoque'].astype(int)
+        self.df['estoque'] = self.df['estoque'].fillna(0)
+        self.df = self.df.drop_duplicates(['sku_seller'])
+        if(self.especial_char == False):
+            self.df['sku_seller'] = self.df['sku_seller'].apply(lambda x :remove_especial_char(x))
+        
+    def get_dataframe(self):
+        return self.df
+    
+class Shoppub():
+    def __init__(self, user, especial_char = False):
+        self.user = user
+        self.especial_char = especial_char
+        self.load()
+        self.transform()
+        
+    def load(self):
+        file = 'shoppub_' + self.user + '.xls'
+        self.df = pd.read_excel(NETSHOES_FOLDER + file)
+
+    def transform(self):
+        self.df = self.df[self.df.columns[self.df.columns.isin(['sku', 'preco_custo', 'estoque'])]]
+        self.df = self.df.rename({'sku': 'sku_seller', 'preco_custo': 'cost_price'}, axis= 1)
+        self.df['sku_seller'] = self.df['sku_seller'].astype(str)
+        self.df['estoque'] = self.df['estoque'].astype(int)
+        self.df['estoque'] = self.df['estoque'].fillna(0)
+        if(self.especial_char == False):
+            self.df['sku_seller'] = self.df['sku_seller'].apply(lambda x :remove_especial_char(x))
+        self.df = self.df.drop_duplicates(['sku_seller'])
+        
+    def get_dataframe(self):
+        return self.df    
+   
+    
+def remove_especial_char(string):
+    return re.sub(u'[^a-zA-Z0-9]', '', string)
