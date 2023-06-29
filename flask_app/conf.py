@@ -10,6 +10,6 @@ _DB_PORT = '25060'
 
 DB_USER = "hooklab_admin"
 DB_PASSWORD = "43QsRn3ADIyATTb0a0LK"
-DB_ADDRESS = "hooklab-db-instance.postgres.database.azure.com"
+DB_ADDRESS = "hooklab-db-instanc-restore.postgres.database.azure.com"
 DB_NAME = "hooklab_db"
 DB_PORT = '5432'
